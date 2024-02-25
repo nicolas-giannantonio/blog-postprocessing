@@ -1,0 +1,72 @@
+{
+    const renderer = new Renderer({dpr: 1});
+    const gl = renderer.gl;
+    document.body.appendChild(gl.canvas);
+    gl.clearColor(0.0, 0.0, 0.1, 1);
+
+    const camera = new Camera(gl, {fov: 35});
+    camera.position.set(0, 1, 5);
+    camera.lookAt([0, 0, 0]);
+
+    const postComposite = new Post(gl);
+
+    const resolution = {value: new Vec2()};
+
+    const scene = new Transform();
+
+    let mesh;
+    let compositePass;
+
+    {
+        initScene();
+        initPasses();
+    }
+
+    function initScene() {
+        const geometry = new Box(gl);
+        const program = new Program(gl, {
+            vertex: baseVertex,
+            fragment: baseFragment,
+        });
+        mesh = new Mesh(gl, {geometry, program});
+        mesh.setParent(scene);
+    }
+
+    function initPasses() {
+        compositePass = postComposite.addPass({
+            fragment: postFragment,
+            uniforms: {
+                uResolution: resolution,
+            },
+        });
+    }
+
+    function resize() {
+        const {innerWidth: width, innerHeight: height} = window;
+        renderer.setSize(width, height);
+        camera.perspective({aspect: width / height});
+
+        postComposite.resize();
+
+        resolution.value.set(width, height);
+    }
+
+    window.addEventListener('resize', resize, false);
+    resize();
+
+    requestAnimationFrame(update);
+
+    function update() {
+        requestAnimationFrame(update);
+
+
+        compositePass.enabled = false;
+        postComposite.targetOnly = true;
+        postComposite.render({scene, camera});
+
+        compositePass.enabled = true;
+        postComposite.targetOnly = false;
+
+        postComposite.render({texture: postComposite.uniform.value});
+    }
+}
