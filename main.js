@@ -1,4 +1,4 @@
-import {Renderer, Camera, Program, Mesh, Box, Transform, Post} from 'ogl';
+import {Renderer, Camera, Program, Mesh, Box, Transform, Post, Plane, Texture} from 'ogl';
 import "./style.css";
 import baseVertex from "./shaders/base/vertex.glsl?raw";
 import baseFragment from "./shaders/base/fragment.glsl?raw";
@@ -36,7 +36,7 @@ class GL {
         });
         this.gl = this.renderer.gl;
         document.body.appendChild(this.gl.canvas);
-        this.gl.clearColor(0.0, 0.0, 0.1, 1);
+        this.gl.clearColor(0.0, 0.0, 0.0, 1);
 
         // CAMERA
         this.camera = new Camera(this.gl, {fov: 35});
@@ -48,15 +48,37 @@ class GL {
     }
 
     createMesh() {
+
+        this.video = document.createElement('video');
+        this.video.src = "/feu.mp4";
+        this.video.autoplay = true;
+        this.video.crossOrigin = "anonymous";
+        this.video.loop = false;
+        this.video.muted = true;
+        this.video.setAttribute('playsinline', 'playsinline');
+
+        window.addEventListener('click', () => {
+            this.video.play();
+        })
+
+        this.videoTexture = new Texture(this.gl, {
+            generateMipmaps: false,
+            width: this.video.videoWidth,
+            height: this.video.videoHeight,
+        });
+
         // CREATE OUR MESH
-        const geometry = new Box(this.gl);
+        const geometry = new Plane(this.gl);
         const program = new Program(this.gl, {
             vertex: baseVertex,
             fragment: baseFragment,
             uniforms: {
-                uTime: {value: 0}
-            }
+                uTime: {value: 0},
+                uTexture: {value: this.videoTexture},
+            },
+            cullFace: false,
         });
+
         this.mesh = new Mesh(this.gl, {geometry, program});
         this.mesh.setParent(this.scene);
     }
@@ -79,11 +101,11 @@ class GL {
 
     update() {
         requestAnimationFrame(this.update);
+        if (this.video.readyState >= this.video.HAVE_ENOUGH_DATA) {
+            if (!this.videoTexture.image) this.videoTexture.image = this.video;
+            this.videoTexture.needsUpdate = true;
+        }
 
-        // RENDER SCENE
-        // this.renderer.render({scene: this.scene, camera: this.camera});
-
-        // RENDER POST
         this.mainPass.uniforms.uTime.value += 0.01;
 
         this.mouse.lerpX = Lerp(this.mouse.lerpX, this.mouse.x, 0.025);
@@ -103,6 +125,10 @@ class GL {
         this.camera.perspective({
             aspect: this.gl.canvas.width / this.gl.canvas.height
         });
+
+        this.mesh.scale.x = .9 * 1.15;
+        this.mesh.scale.y = 1.6 * 1.15;
+
 
         this.post.resize();
     }
